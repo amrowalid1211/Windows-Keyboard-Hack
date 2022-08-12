@@ -13,8 +13,8 @@ using System.Threading.Tasks;
 using System.Windows.Forms;
 using Timer = System.Windows.Forms.Timer;
 using System.Drawing;
-using System.Runtime.InteropServices;
 using Microsoft.Win32;
+using Gma.System.MouseKeyHook;
 
 namespace CustomTouckKeyboard
 {
@@ -30,7 +30,21 @@ namespace CustomTouckKeyboard
         private System.Windows.Forms.ContextMenu contextMenu1;
         private System.Windows.Forms.MenuItem menuItem1;
         private System.Windows.Forms.MenuItem menuItem2;
+         [DllImport("user32.dll", EntryPoint = "SetParent")]
+        static extern int SetParent(IntPtr hWndChild, IntPtr hWndNewParent);
+        [System.Runtime.InteropServices.DllImport("user32.dll")]
+        static extern int SendMessage(IntPtr hWnd, int Msg, int wParam, int lParam);
+        private const int WM_SYSCOMMAND = 0x112;
+        private const int SC_MAXIMIZE = 0xF030;
+        bool isExit = false;
+        void embedTool()
+        {
+            //Process p = Process.Start("Notepad");
+            //p.WaitForInputIdle();
+            //SetParent(p.MainWindowHandle, panel2.Handle);
+            //SendMessage(p.MainWindowHandle, WM_SYSCOMMAND, SC_MAXIMIZE, 0);
 
+        }
         public Form1()
         {
             // = false;
@@ -83,15 +97,95 @@ namespace CustomTouckKeyboard
             //SetParent(keys[0].MainWindowHandle, this.Handle);
             Open();
             t  = new Timer();
-            t.Interval = 1;
+            t.Interval = 1000;
             t.Tick += T_Tick;
             t.Start();
-         
+            Hook.GlobalEvents().MouseClick += MouseClickAll;
+
+
+
+        }
+        [StructLayout(LayoutKind.Sequential)]
+        public struct POINT
+        {
+            public int X;
+            public int Y;
+
+            public POINT(int x, int y)
+            {
+                this.X = x;
+                this.Y = y;
+            }
+
+            public static implicit operator System.Drawing.Point(POINT p)
+            {
+                return new System.Drawing.Point(p.X, p.Y);
+            }
+
+            public static implicit operator POINT(System.Drawing.Point p)
+            {
+                return new POINT(p.X, p.Y);
+            }
         }
 
-        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        static extern bool GetCursorPos(out POINT lpPoint);
+
+        int changed = 0;
+        private void MouseClickAll(object sender, MouseEventArgs e)
         {
             
+            POINT p;
+            if (GetCursorPos(out p))
+            {
+                if (Cursor.Position.X < rect.X + rect.Width &&
+                    Cursor.Position.X > rect.X + rect.Width*0.8
+                    && Cursor.Position.Y > rect.Y
+                    && Cursor.Position.Y < rect.Y + rect.Height*0.2)
+                {
+                    isExit = true;
+                    changed = 2;
+                }
+                //label1.Text = Convert.ToString(p.X) + ";" + Convert.ToString(p.Y);
+            }
+           
+            
+        }
+
+        private void T_Tick(object sender, EventArgs e)
+        {
+            try
+            {
+                if(changed > 0)
+                {
+                    changed--;
+                    return;
+                }
+                var inputPane = (IFrameworkInputPane)new FrameworkInputPane();
+                inputPane.Location(out rect);
+
+                // Console.WriteLine((rect.Width == 0 && rect.Height == 0) ? "Keyboard not visible" : "Keyboard visible");
+                if (rect.Width == 0 && !isExit)
+                {
+                    var uiHostNoLaunch = new UIHostNoLaunch();
+                    var tipInvocation = (ITipInvocation)uiHostNoLaunch;
+                    tipInvocation.Toggle(this.Handle);
+                    Marshal.ReleaseComObject(uiHostNoLaunch);
+                }
+                else if (rect.Width > 0)
+                    isExit = false;
+
+            }
+            catch (Exception ex)
+            {
+
+            }
+
+        }
+        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        {
+            Console.WriteLine();
         }
 
         private void Form1_Shown(object sender, EventArgs e)
@@ -148,33 +242,8 @@ namespace CustomTouckKeyboard
             notifyIcon1.Dispose();
             this.Close();
         }
-        private void T_Tick(object sender, EventArgs e)
-        { 
-            try
-            {
-                var inputPane = (IFrameworkInputPane)new FrameworkInputPane();
-                inputPane.Location(out var rect);
-                Console.WriteLine((rect.Width == 0 && rect.Height == 0) ? "Keyboard not visible" : "Keyboard visible");
-                if (rect.Width == 0)
-                {
-                    var uiHostNoLaunch = new UIHostNoLaunch();
-                    var tipInvocation = (ITipInvocation)uiHostNoLaunch;
-                    tipInvocation.Toggle(GetDesktopWindow());
-                    Marshal.ReleaseComObject(uiHostNoLaunch);
-                    Thread.Sleep(500);
-                }
-             
-
-
-
-
-            }
-            catch (Exception ex)
-            {
-
-            }
-
-        }
+        Rectangle rect; 
+        
        
 
         public void Open()
