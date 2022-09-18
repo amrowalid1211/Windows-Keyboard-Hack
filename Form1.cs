@@ -15,6 +15,9 @@ using Timer = System.Windows.Forms.Timer;
 using System.Drawing;
 using Microsoft.Win32;
 using Gma.System.MouseKeyHook;
+using CustomTouckKeyboard.actions;
+using System.Windows.Input;
+using MouseEventArgs = System.Windows.Input.MouseEventArgs;
 
 namespace CustomTouckKeyboard
 {
@@ -95,15 +98,41 @@ namespace CustomTouckKeyboard
 
             //Process[] keys = Process.GetProcessesByName("TabTip");
             //SetParent(keys[0].MainWindowHandle, this.Handle);
-            Open();
+            // Open();
+            Process.Start(TabTipFilePath);
+            Thread.Sleep(200);
+            inputPane = (IFrameworkInputPane)new FrameworkInputPane();
+            inputPane.Location(out rect);
             t  = new Timer();
-            t.Interval = 1000;
+            t.Interval = 2000;
             t.Tick += T_Tick;
             t.Start();
-            Hook.GlobalEvents().MouseClick += MouseClickAll;
+            //Hook.GlobalEvents().MouseDown += MouseClickAll;
+            //MouseHook.Start();
+            //MouseHook.MouseAction += MouseHook_MouseAction;
+            //Touch.FrameReported += Touch_FrameReported;
 
+        }
+        IFrameworkInputPane inputPane;
+        Rectangle rect;
+        private void Touch_FrameReported(object sender, TouchFrameEventArgs e)
+        {
+            Console.WriteLine("Touched");
+        }
 
+        private void MouseHook_MouseAction(object sender, EventArgs e)
+        {
+            //trackingInfo.userActivityPerMinute.incrementMouseClick();
+            Console.WriteLine(CursorControl.GetCursorState());
+            string cursorState = CursorControl.GetCursorState();
 
+            if (cursorState == "65541" || cursorState == "6948113")
+            {
+               // Console.WriteLine("Mouse Click");
+                Open();
+
+            }
+            
         }
         [StructLayout(LayoutKind.Sequential)]
         public struct POINT
@@ -135,47 +164,47 @@ namespace CustomTouckKeyboard
         int changed = 0;
         private void MouseClickAll(object sender, MouseEventArgs e)
         {
-            
-            POINT p;
-            if (GetCursorPos(out p))
+            Console.WriteLine(CursorControl.GetCursorState());
+            if (CursorControl.GetCursorState() == "65541")
             {
-                if (Cursor.Position.X < rect.X + rect.Width &&
-                    Cursor.Position.X > rect.X + rect.Width*0.8
-                    && Cursor.Position.Y > rect.Y
-                    && Cursor.Position.Y < rect.Y + rect.Height*0.2)
-                {
-                    isExit = true;
-                    changed = 2;
-                }
-                //label1.Text = Convert.ToString(p.X) + ";" + Convert.ToString(p.Y);
+                Open();
             }
-           
             
         }
-
+        bool isHidden = false;
+        
         private void T_Tick(object sender, EventArgs e)
         {
             try
             {
-                if(changed > 0)
+                if(!isHidden)
+                foreach (var x in Process.GetProcessesByName("TabTip"))
                 {
-                    changed--;
-                    return;
+                    x.Kill();
                 }
-                var inputPane = (IFrameworkInputPane)new FrameworkInputPane();
+                //t.Interval = 5000; Process.Start(TabTipFilePath);
+
+
+
+
+
                 inputPane.Location(out rect);
 
-                // Console.WriteLine((rect.Width == 0 && rect.Height == 0) ? "Keyboard not visible" : "Keyboard visible");
-                if (rect.Width == 0 && !isExit)
+                Console.WriteLine((rect.Width == 0 && rect.Height == 0) ? "Keyboard not visible " : "Keyboard visible");
+                Console.WriteLine(isHidden + " " + Process.GetProcessesByName("TabTip").Length);
+                
+                if (rect.Width == 0 && !isHidden)
                 {
+                    isHidden = true;
+                    Process.Start(TabTipFilePath);
+                    Thread.Sleep(200);
                     var uiHostNoLaunch = new UIHostNoLaunch();
                     var tipInvocation = (ITipInvocation)uiHostNoLaunch;
-                    tipInvocation.Toggle(this.Handle);
+                    tipInvocation.Toggle(GetDesktopWindow());
                     Marshal.ReleaseComObject(uiHostNoLaunch);
-                }
-                else if (rect.Width > 0)
-                    isExit = false;
-
+                    
+                }else if(rect.Width != 0)
+                    isHidden = false;
             }
             catch (Exception ex)
             {
@@ -242,26 +271,27 @@ namespace CustomTouckKeyboard
             notifyIcon1.Dispose();
             this.Close();
         }
-        Rectangle rect; 
         
        
 
         public void Open()
         {
             try
-            { 
-               
-                foreach(var x in Process.GetProcessesByName("TabTip"))
-                {
-                    x.Kill();
-                }
-                x = Process.Start(TabTipFilePath);
-                int value = 0;
-               // Thread.Sleep(5000);
-                int ani = 1;
+            {
+                Process.Start(TabTipFilePath);
+                Thread.Sleep(200);
+                var inputPane = (IFrameworkInputPane)new FrameworkInputPane();
+                inputPane.Location(out var rect);
 
-             //   int hr = DwmSetWindowAttribute(x.MainWindowHandle, DwmWindowAttribute.DWMWA_TRANSITIONS_FORCEDISABLED, ref ani, Marshal.SizeOf(typeof(int)));
-                x.Exited += X_Exited;
+                // Console.WriteLine((rect.Width == 0 && rect.Height == 0) ? "Keyboard not visible" : "Keyboard visible");
+                if (rect.Width == 0 )
+                {
+                    var uiHostNoLaunch = new UIHostNoLaunch();
+                    var tipInvocation = (ITipInvocation)uiHostNoLaunch;
+                    tipInvocation.Toggle(GetDesktopWindow());
+                    Marshal.ReleaseComObject(uiHostNoLaunch);
+                }
+               
             }
             catch (Exception ex)
             {
@@ -269,6 +299,11 @@ namespace CustomTouckKeyboard
             }
 
             
+        }
+
+        public void show()
+        {
+
         }
 
         [DllImport("user32.dll")]
