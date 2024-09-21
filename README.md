@@ -17,7 +17,7 @@ CustomTouckKeyboard modifies Windows keyboard inputs to prevent accidental minim
 This tool runs as an executable (`CustomTouckKeyboard.exe`), ensuring the current on-screen windows keyboard remains regardless of keyboard presses.
 
 ## Features
-- Prevents accidental window minimization.
+- Prevents accidental on-screen windows keyboard minimization.
 - Keeps applications running in full-screen mode.
 - Designed for enhanced productivity for drawing tablet users on Windows.
 
